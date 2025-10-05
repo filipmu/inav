@@ -107,9 +107,9 @@
 
 #include "build/debug.h"
 
-#define VL53L1X_MAX_RANGE_CM                                (300)
-#define VL53L1X_DETECTION_CONE_DECIDEGREES                  (270)
-#define VL53L1X_TIMING_BUDGET                               (33)
+#define VL53L1X_MAX_RANGE_CM                                (225)
+#define VL53L1X_DETECTION_CONE_DECIDEGREES                  (900)
+#define VL53L1X_TIMING_BUDGET                               (50)
 
 #define VL53L1X_IMPLEMENTATION_VER_MAJOR       3
 #define VL53L1X_IMPLEMENTATION_VER_MINOR       4
