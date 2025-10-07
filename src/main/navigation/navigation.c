@@ -268,6 +268,8 @@ uint16_t navFlags;
 uint16_t navEPH;
 uint16_t navEPV;
 int16_t navAccNEU[3];
+int8_t  navFwLandingPhase;       // new (for FW autoland)
+uint8_t navAltRfUsed;            // new (for rangefinder usage in autoland)
 //End of blackbox states
 
 static fpVector3_t * rthGetHomeTargetPosition(rthTargetMode_e mode);
@@ -1271,6 +1273,19 @@ static bool navTerrainFollowingRequested(void)
     // Terrain following not supported on FIXED WING aircraft yet
     return !STATE(FIXED_WING_LEGACY) && IS_RC_MODE_ACTIVE(BOXSURFACE);
 }
+
+// Return true if we are in FW autoland mode and in one of the states where rangefinder is allowed
+#ifdef USE_FW_AUTOLAND
+
+static inline bool fwAutolandRangefinderAllowed(void)
+{
+    return FLIGHT_MODE(NAV_FW_AUTOLAND) &&
+           (posControl.navState == NAV_STATE_FW_LANDING_GLIDE ||
+            posControl.navState == NAV_STATE_FW_LANDING_FLARE);
+}
+#endif
+
+
 
 /*************************************************************************************************/
 static navigationFSMEvent_t navOnEnteringState_NAV_STATE_IDLE(navigationFSMState_t previousState)
@@ -2523,11 +2538,19 @@ static navigationFSMEvent_t navOnEnteringState_NAV_STATE_FW_LANDING_GLIDE(naviga
         return NAV_FSM_EVENT_SWITCH_TO_NAV_STATE_FW_LANDING_ABORT;
     }
 
-    if (getHwRangefinderStatus() == HW_SENSOR_OK && getLandAltitude() <= posControl.fwLandState.landAltAgl + navFwAutolandConfig()->flareAltitude) {
+#ifdef USE_FW_AUTOLAND
+#ifdef USE_RANGEFINDER
+    if (fwAutolandRangefinderAllowed() &&
+        getHwRangefinderStatus() == HW_SENSOR_OK &&
+        getLandAltitude() <= posControl.fwLandState.landAltAgl + navFwAutolandConfig()->flareAltitude) //consider changing this to use rangefinder only
+    {
         posControl.fwLandState.landState = FW_AUTOLAND_STATE_FLARE;
+        posControl.flags.rangefinderAltActive = true;   // RF is driving this
         return NAV_FSM_EVENT_SUCCESS;
     }
-
+    posControl.flags.rangefinderAltActive = false;
+#endif
+#endif
     setDesiredPosition(NULL, posControl.cruise.course, NAV_POS_UPDATE_HEADING);
     return NAV_FSM_EVENT_NONE;
 }
@@ -2840,6 +2863,16 @@ void updateActualHorizontalPositionAndVelocity(bool estPosValid, bool estVelVali
  *-----------------------------------------------------------*/
 void updateActualAltitudeAndClimbRate(bool estimateValid, float newAltitude, float newVelocity, float surfaceDistance, float surfaceVelocity, navigationEstimateStatus_e surfaceStatus, float gpsCfEstimatedAltitudeError)
 {
+
+    // Gate AGL trust for AIRPLANE unless in FW autoland glide/flare
+#ifdef USE_FW_AUTOLAND
+    if (STATE(AIRPLANE) && !fwAutolandRangefinderAllowed()) {
+        surfaceStatus = EST_NONE;             // refuse AGL outside glide/flare
+        surfaceDistance = 0.0f;               // clear AGL distance
+        surfaceVelocity = 0.0f;               // clear AGL velocity
+    }
+#endif
+
     posControl.actualState.abs.pos.z = newAltitude;
     posControl.actualState.abs.vel.z = newVelocity;
 
@@ -5324,11 +5357,17 @@ static int32_t calcFinalApproachHeading(int32_t approachHeading, int32_t windAng
 static float getLandAltitude(void)
 {
     float altitude = -1;
-#ifdef USE_RANGEFINDER
-    if (rangefinderIsHealthy() && rangefinderGetLatestAltitude() > RANGEFINDER_OUT_OF_RANGE) {
+
+#if defined(USE_RANGEFINDER) && defined(USE_FW_AUTOLAND)
+    if (fwAutolandRangefinderAllowed() &&
+        rangefinderIsHealthy() &&
+        rangefinderGetLatestAltitude() > RANGEFINDER_OUT_OF_RANGE) 
+    {
         altitude = rangefinderGetLatestAltitude();
+        posControl.flags.rangefinderAltActive = true;   // new flag for debug/OSD
+        return altitude;
     }
-    else
+    posControl.flags.rangefinderAltActive = false;  // new flag for debug/OSD
 #endif
     if (posControl.flags.estAglStatus >= EST_USABLE) {
         altitude = posControl.actualState.agl.pos.z;
