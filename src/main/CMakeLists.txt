@@ -498,6 +498,7 @@ main_sources(COMMON_SRC
     io/rangefinder.h
     io/rangefinder_msp.c
     io/rangefinder_benewake.c
+    io/rangefinder_tofsensef.c
     io/rangefinder_usd1_v0.c
     io/rangefinder_nanoradar.c
     io/rangefinder_fake.c
