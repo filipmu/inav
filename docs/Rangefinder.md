@@ -22,6 +22,7 @@ Following rangefinders are supported:
 * TOF10120 - small & lightweight laser range sensor, usable up to 200cm
 * TERARANGER EVO - 30cm to 600cm, depends on version https://www.terabee.com/sensors-modules/lidar-tof-range-finders/#individual-distance-measurement-sensors
 * NRA15/NRA24 - experimental, UART version
+* TOFSENSEF - TOFSense-F2 Mini V2 - small and lightweight (1g) with a range of 0.02m - 7.8m over UART (default sensor configuration) see https://www.nooploop.com/download/
 
 #### NRA15/NRA24
 NRA15/NRA24 from nanoradar use US-D1_V0 or NRA protocol, it depends which firmware you use. Radar can be set by firmware
