@@ -34,88 +34,85 @@ typedef __attribute__((packed)) struct {
     uint8_t checksum;
 } tofsensefPacket8_t;
 
-typedef __attribute__((packed)) struct {
-    uint32_t addr;
-    uint32_t sys_time;
-    uint32_t dist;
-    uint32_t quality;
-} tofsensefPacket32_t;
 
 #define TOFSENSEF_PACKET_SIZE sizeof(tofsensefPacket8_t)
 #define TOFSENSEF_MIN_QUALITY 20
-#define TOFSENSEF_TIMEOUT_MS 200
 
 // --- Driver state ---
 static serialPort_t * serialPort = NULL;
-static serialPortConfig_t * portConfig;
+static serialPortConfig_t * portConfig = NULL;
 static uint8_t buffer[TOFSENSEF_PACKET_SIZE];
-static unsigned bufferPtr;
-static timeMs_t lastProtocolActivityMs;
+static unsigned bufferPtr = 0;
 static bool hasNewData = false;
 static int32_t sensorData = RANGEFINDER_NO_NEW_DATA;
-static uint32_t lastSysTime;
+
 
 // --- Init function ---
-static bool tofsensefInit(void)
+static void tofsensefInit(void)
 {
+    if (!portConfig) return;
     serialPort = openSerialPort(portConfig->identifier, FUNCTION_RANGEFINDER, NULL, NULL, 921600, MODE_RXTX, SERIAL_NOT_INVERTED);
-    if (!serialPort) {
-        return false;
-    }
-
+    if (!serialPort) return;
     bufferPtr = 0;
     hasNewData = false;
     sensorData = RANGEFINDER_NO_NEW_DATA;
-    lastProtocolActivityMs = 0;
-    lastSysTime = 0;
-    return true;
 }
+
+
+
 
 // --- Update function (called periodically) ---
 static void tofsensefUpdate(void)
 {
-    tofsensefPacket8_t *pkt8 = (tofsensefPacket8_t *)buffer;
-    tofsensefPacket32_t *pkt32 = (tofsensefPacket32_t *)buffer;
-
-    while (serialRxBytesWaiting(serialPort)) {
+    while (serialRxBytesWaiting(serialPort) > 0) {
         uint8_t c = serialRead(serialPort);
 
+        // Add to buffer if space available
         if (bufferPtr < TOFSENSEF_PACKET_SIZE) {
             buffer[bufferPtr++] = c;
         }
 
-        // Header checks
-        if ((bufferPtr == 1) && (pkt8->frame_header != 0x57)) {
+        // Only check header if minimum needed bytes buffered
+        if (bufferPtr >= 1 && buffer[0] != 0x57) {
             bufferPtr = 0;
             continue;
         }
-        if ((bufferPtr == 2) && (pkt8->function_mark != 0x00)) {
+        if (bufferPtr >= 2 && buffer[1] != 0x00) {
             bufferPtr = 0;
             continue;
         }
 
-        // Full packet
+        // Wait for a full packet
         if (bufferPtr == TOFSENSEF_PACKET_SIZE) {
+            // Verify checksum
             uint8_t sum = 0;
             for (unsigned i = 0; i < TOFSENSEF_PACKET_SIZE - 1; i++) {
                 sum += buffer[i];
             }
 
-            if (pkt8->checksum == sum) {
-                // Valid packet
-                hasNewData = true;
-                sensorData = (pkt32->dist & 0x00FFFFFF) / 10; // mm → cm
-                lastProtocolActivityMs = millis();
+            if (buffer[TOFSENSEF_PACKET_SIZE - 1] == sum) {
+                // Only now overlay the struct!
+                tofsensefPacket8_t *pkt = (tofsensefPacket8_t *)buffer;
 
-                uint16_t qual = (pkt8->sig_strength0) | (pkt8->sig_strength1 << 8);
-                bool sensorIssue = (lastSysTime >= pkt32->sys_time);
-                lastSysTime = pkt32->sys_time;
+                // Extract distance from 3 bytes (LSB first)
+                uint32_t rawDist = ((uint32_t)pkt->dist2 << 16) | ((uint32_t)pkt->dist1 << 8) | ((uint32_t)pkt->dist0);
+                int32_t dist_cm = (rawDist & 0x00FFFFFF) / 10;
 
-                if (sensorData == 0 || qual <= TOFSENSEF_MIN_QUALITY || pkt8->status != 1 || sensorIssue) {
+                // Extract quality
+                uint16_t qual = ((uint16_t)pkt->sig_strength1 << 8) | pkt->sig_strength0;
+
+
+                // Check validity by all flags
+                if (dist_cm == 0 || qual <= TOFSENSEF_MIN_QUALITY || pkt->status != 1 ) {
                     sensorData = RANGEFINDER_OUT_OF_RANGE;
+                } else {
+                    sensorData = dist_cm;
                 }
+                hasNewData = true;
+        
             }
-            // Prepare for next packet
+
+            // Reset buffer for next packet regardless
             bufferPtr = 0;
         }
     }
@@ -127,20 +124,16 @@ static int32_t tofsensefRead(void)
     if (hasNewData) {
         hasNewData = false;
         return (sensorData > 0) ? sensorData : RANGEFINDER_OUT_OF_RANGE;
-    } else {
-        return RANGEFINDER_NO_NEW_DATA;
-    }
+    } 
+    return RANGEFINDER_NO_NEW_DATA;
+    
 }
 
 // --- Detect function (optional, for auto-detect) ---
 static bool tofsensefDetect(void)
 {
     portConfig = findSerialPortConfig(FUNCTION_RANGEFINDER);
-    if (!portConfig) {
-        return false;
-    }
-
-    return true;
+    return portConfig != NULL;
 }
 
 // --- Driver registration ---
