@@ -51,7 +51,7 @@ static int32_t sensorData = RANGEFINDER_NO_NEW_DATA;
 static void tofsensefInit(void)
 {
     if (!portConfig) return;
-    serialPort = openSerialPort(portConfig->identifier, FUNCTION_RANGEFINDER, NULL, NULL, 921600, MODE_RX, SERIAL_NOT_INVERTED);
+    serialPort = openSerialPort(portConfig->identifier, FUNCTION_RANGEFINDER, NULL, NULL, 115200, MODE_RX, SERIAL_NOT_INVERTED);
     if (!serialPort) return;
     bufferPtr = 0;
     hasNewData = false;
