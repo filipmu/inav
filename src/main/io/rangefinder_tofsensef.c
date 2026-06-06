@@ -10,7 +10,7 @@
 #if defined(USE_RANGEFINDER_TOFSENSEF)
 #include "drivers/rangefinder/rangefinder_virtual.h"
 #include "drivers/time.h"
-#include "drivers/serial.h"
+//#include "drivers/serial.h"
 #include "io/rangefinder.h"
 
 
@@ -51,7 +51,7 @@ static int32_t sensorData = RANGEFINDER_NO_NEW_DATA;
 static void tofsensefInit(void)
 {
     if (!portConfig) return;
-    serialPort = openSerialPort(portConfig->identifier, FUNCTION_RANGEFINDER, NULL, NULL, 921600, MODE_RXTX, SERIAL_NOT_INVERTED);
+    serialPort = openSerialPort(portConfig->identifier, FUNCTION_RANGEFINDER, NULL, NULL, 921600, MODE_RX, SERIAL_NOT_INVERTED);
     if (!serialPort) return;
     bufferPtr = 0;
     hasNewData = false;
@@ -73,11 +73,11 @@ static void tofsensefUpdate(void)
         }
 
         // Only check header if minimum needed bytes buffered
-        if (bufferPtr >= 1 && buffer[0] != 0x57) {
+        if (bufferPtr == 1 && buffer[0] != 0x57) {
             bufferPtr = 0;
             continue;
         }
-        if (bufferPtr >= 2 && buffer[1] != 0x00) {
+        if (bufferPtr == 2 && buffer[1] != 0x00) {
             bufferPtr = 0;
             continue;
         }
