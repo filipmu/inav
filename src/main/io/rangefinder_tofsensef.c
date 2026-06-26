@@ -2,16 +2,21 @@
 #include <stdint.h>
 #include "platform.h"
 
+#if defined(USE_RANGEFINDER_TOFSENSEF)
+
 #include "build/build_config.h"
 #include "build/debug.h"
 
 #include "io/serial.h"
 
-#if defined(USE_RANGEFINDER_TOFSENSEF)
+#include "navigation/navigation_pos_estimator_private.h"
+
+
 #include "drivers/rangefinder/rangefinder_virtual.h"
 #include "drivers/time.h"
 //#include "drivers/serial.h"
 #include "io/rangefinder.h"
+
 
 
 // --- Packet definitions (from your prototype) ---
@@ -38,6 +43,7 @@ typedef __attribute__((packed)) struct {
 #define TOFSENSEF_PACKET_SIZE sizeof(tofsensefPacket8_t)
 #define TOFSENSEF_MIN_QUALITY 20
 #define TOFSENSEF_CONSECUTIVE_VALID_DATA 3
+#define TOFSENSEF_MAX_DISTANCE_CM 1000 // 10 meters, adjust as needed
 
 // --- Driver state ---
 static serialPort_t * serialPort = NULL;
@@ -106,7 +112,7 @@ static void tofsensefUpdate(void)
 
 
                 // Check validity by all flags
-                if (dist_cm == 0 || qual <= TOFSENSEF_MIN_QUALITY || pkt->status != 1 ) {
+                if (dist_cm == 0 || qual <= TOFSENSEF_MIN_QUALITY || pkt->status != 1 || posEstimator.est.pos.z > TOFSENSEF_MAX_DISTANCE_CM) {
                     sensorData = RANGEFINDER_OUT_OF_RANGE;
                     consecutive_valid_data = TOFSENSEF_CONSECUTIVE_VALID_DATA;
                 } else if(consecutive_valid_data > 0) { //check that we have received a few valid measurements in a row before reporting a valid distance
