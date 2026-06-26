@@ -37,6 +37,7 @@ typedef __attribute__((packed)) struct {
 
 #define TOFSENSEF_PACKET_SIZE sizeof(tofsensefPacket8_t)
 #define TOFSENSEF_MIN_QUALITY 20
+#define TOFSENSEF_CONSECUTIVE_VALID_DATA 3
 
 // --- Driver state ---
 static serialPort_t * serialPort = NULL;
@@ -44,6 +45,7 @@ static serialPortConfig_t * portConfig = NULL;
 static uint8_t buffer[TOFSENSEF_PACKET_SIZE];
 static unsigned bufferPtr = 0;
 static bool hasNewData = false;
+static uint8_t consecutive_valid_data = TOFSENSEF_CONSECUTIVE_VALID_DATA;
 static int32_t sensorData = RANGEFINDER_NO_NEW_DATA;
 
 
@@ -56,6 +58,7 @@ static void tofsensefInit(void)
     bufferPtr = 0;
     hasNewData = false;
     sensorData = RANGEFINDER_NO_NEW_DATA;
+    consecutive_valid_data = TOFSENSEF_CONSECUTIVE_VALID_DATA;
 }
 
 
@@ -105,7 +108,10 @@ static void tofsensefUpdate(void)
                 // Check validity by all flags
                 if (dist_cm == 0 || qual <= TOFSENSEF_MIN_QUALITY || pkt->status != 1 ) {
                     sensorData = RANGEFINDER_OUT_OF_RANGE;
-                } else {
+                    consecutive_valid_data = TOFSENSEF_CONSECUTIVE_VALID_DATA;
+                } else if(consecutive_valid_data > 0) { //check that we have received a few valid measurements in a row before reporting a valid distance
+                    consecutive_valid_data--;
+                } else { // we have received enough valid measurements in a row, report the distance
                     sensorData = dist_cm;
                 }
                 hasNewData = true;
