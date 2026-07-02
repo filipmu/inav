@@ -80,6 +80,18 @@ static bool rangefinderDetect(rangefinderDev_t * dev, uint8_t rangefinderHardwar
     requestedSensors[SENSOR_INDEX_RANGEFINDER] = rangefinderHardwareToUse;
 
     switch (rangefinderHardwareToUse) {
+        //case RANGEFINDER_TOFSENSEF:
+        case RANGEFINDER_SRF10:
+#if defined(USE_RANGEFINDER_TOFSENSEF)
+            if (virtualRangefinderDetect(dev, &rangefinderTOFSenseFVtable)) {
+                rangefinderHardware = RANGEFINDER_SRF10; // We use the enum for RANGEFINDER_SRF10 to ensure configurator does not cause validation issues
+                //rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(RANGEFINDER_VIRTUAL_TASK_PERIOD_MS));
+                rescheduleTask(TASK_RANGEFINDER, TASK_PERIOD_MS(100));
+            }
+#endif
+            break;
+
+/*
         case RANGEFINDER_SRF10:
 #ifdef USE_RANGEFINDER_SRF10
             if (srf10Detect(dev)) {
@@ -88,7 +100,7 @@ static bool rangefinderDetect(rangefinderDev_t * dev, uint8_t rangefinderHardwar
             }
 #endif
             break;
-
+*/
             case RANGEFINDER_TERARANGER_EVO:
 #if defined(USE_RANGEFINDER_TERARANGER_EVO_I2C)
             if (teraRangerDetect(dev)) {

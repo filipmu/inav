@@ -22,7 +22,7 @@ INAV supports the following rangefinder types:
 * **TOF10120** - Small & lightweight laser sensor, 0-200cm range (I2C)
 * **TERARANGER_EVO** - TeraRanger Evo series, 30-600cm range depending on model (I2C/UART)
   - https://www.terabee.com/sensors-modules/lidar-tof-range-finders/#individual-distance-measurement-sensors
-
+* **TOFSENSEF** - TOFSense-F2 Mini V2 - small and lightweight (1g) with a range of 0.02m - 7.8m over UART (default sensor configuration) see https://www.nooploop.com/download/
 ### Ultrasonic Sensors
 
 * **SRF10** - Devantech SRF10, 0-600cm range (I2C)
