@@ -20,7 +20,7 @@
 
 
 // --- Packet definitions (from your prototype) ---
-typedef __attribute__((packed)) struct {
+typedef struct __attribute__((packed)) {
     uint8_t frame_header;
     uint8_t function_mark;
     uint8_t reserved;
