@@ -2464,6 +2464,7 @@ static navigationFSMEvent_t navOnEnteringState_NAV_STATE_FW_LANDING_LOITER(navig
     return NAV_FSM_EVENT_NONE;
 }
 static navigationFSMEvent_t navOnEnteringState_NAV_STATE_FW_LANDING_APPROACH(navigationFSMState_t previousState)
+//note that the logic is confusing below since it appears that with the agl the glide state could be activated in the downwind or base leg portion of the landing approach.//
 {
     UNUSED(previousState);
 
@@ -2479,7 +2480,7 @@ static navigationFSMEvent_t navOnEnteringState_NAV_STATE_FW_LANDING_APPROACH(nav
         return NAV_FSM_EVENT_SWITCH_TO_NAV_STATE_FW_LANDING_ABORT;
     }
 
-    if (getLandAltitude() <= fwAutolandApproachConfig(posControl.fwLandState.approachSettingIdx)->landAlt + navFwAutolandConfig()->glideAltitude - (fwAutolandApproachConfig(posControl.fwLandState.approachSettingIdx)->isSeaLevelRef ? GPS_home.alt : 0)) {
+    if ((getLandAltitude() != RANGEFINDER_OUT_OF_RANGE) && (getLandAltitude() <=  navFwAutolandConfig()->glideAltitude )) { //assuming only rangefinder used and sea level reference is not used //
         resetPositionController();
         posControl.cruise.course = posControl.fwLandState.landingDirection;
         posControl.cruise.previousCourse = posControl.cruise.course;
@@ -2523,7 +2524,7 @@ static navigationFSMEvent_t navOnEnteringState_NAV_STATE_FW_LANDING_GLIDE(naviga
         return NAV_FSM_EVENT_SWITCH_TO_NAV_STATE_FW_LANDING_ABORT;
     }
 
-    if (getHwRangefinderStatus() == HW_SENSOR_OK && getLandAltitude() <= posControl.fwLandState.landAltAgl + navFwAutolandConfig()->flareAltitude) {
+    if ((getLandAltitude() != RANGEFINDER_OUT_OF_RANGE) && (getLandAltitude() <= navFwAutolandConfig()->flareAltitude)) {
         posControl.fwLandState.landState = FW_AUTOLAND_STATE_FLARE;
         return NAV_FSM_EVENT_SUCCESS;
     }
@@ -5339,7 +5340,8 @@ static float getLandAltitude(void)
 {
     float altitude = -1;
 #ifdef USE_RANGEFINDER
-    if (rangefinderIsHealthy() && rangefinderGetLatestAltitude() > RANGEFINDER_OUT_OF_RANGE) {
+    //if (rangefinderIsHealthy() && rangefinderGetLatestAltitude() > RANGEFINDER_OUT_OF_RANGE) {//
+    if (rangefinderIsHealthy()) {
         altitude = rangefinderGetLatestAltitude();
     }
     else
